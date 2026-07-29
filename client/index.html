@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  FILE: client/index.html
+  ============================================================
+
+  SECTION 1 — FILE PURPOSE
+  ─────────────────────────────────────────────────────────────
+  WHY THIS FILE EXISTS:
+    This is the ONLY real HTML file in the entire project.
+    Because this is a Single Page Application (SPA), the browser
+    only ever loads THIS one HTML page. Everything else — the
+    Navbar, Home page, Generator, Community, etc. — is generated
+    dynamically by React JavaScript inside this page.
+
+  WHEN IT EXECUTES:
+    This is the very first file the browser receives.
+    It executes BEFORE any JavaScript runs.
+
+  WHO CALLS IT:
+    In development: Vite dev server serves it at http://localhost:5173
+    In production:  CDN/hosting serves it from the built dist/ folder
+
+  WHAT IT DOES:
+    1. Sets page metadata (charset, viewport, title, favicon)
+    2. Provides the empty <div id="root"> that React mounts into
+    3. Loads main.tsx via <script type="module">
+
+  CONCEPT — Single Page Application (SPA):
+    In traditional websites, each URL = a new HTML file from the server.
+    In a SPA, there is ONE HTML file. React intercepts navigation and
+    swaps components in/out WITHOUT requesting a new page from the server.
+    This makes navigation feel instant — no white flash between pages.
+
+  INTERVIEW Q: Why is the <body> almost empty?
+  A: React generates all the HTML dynamically. The body only needs
+     the mount point (<div id="root">) — React fills the rest.
+
+  INTERVIEW Q: What happens if you visit /community directly (hard refresh)?
+  A: The server must return index.html for ALL routes (/* → index.html).
+     If not configured, the server returns 404 for /community.
+     Vite handles this automatically in dev. In production, configure
+     the server (Nginx/Vercel) to always serve index.html.
+  ─────────────────────────────────────────────────────────────
+-->
+
+<html lang="en" class="scroll-smooth">
+<!--
+  lang="en"
+    Tells browsers, screen readers, and search engines the page language.
+    Screen readers use this to select the right text-to-speech voice.
+    Search engines use it for language-specific indexing.
+    Accessibility best practice — always set lang.
+
+  class="scroll-smooth"
+    A Tailwind utility: CSS scroll-behavior: smooth.
+    When clicking anchor links (#features, #pricing), the page scrolls
+    smoothly instead of jumping. Applies to the entire document.
+-->
+
+<head>
+  <!--
+    <head> = METADATA ZONE.
+    Nothing inside <head> is visible to the user.
+    It's read by browsers, search engines, and social media scrapers.
+  -->
+
+  <meta charset="UTF-8" />
+  <!--
+    UTF-8 = character encoding standard.
+    Supports ALL characters: English, Hindi, Arabic, Chinese, emoji 🎉
+    Without this, special characters (é, ñ, ₹) display as garbled symbols.
+    ALWAYS include this — it must be the FIRST tag in <head>.
+  -->
+
+  <link rel="icon" type="image/ico" href="/favicon.svg" />
+  <!--
+    Favicon = the small icon in browser tabs and bookmarks.
+    href="/favicon.svg" — Vite serves files in the /public/ folder at the root path.
+    Put favicon.svg in client/public/favicon.svg → served at /favicon.svg.
+
+    INTERVIEW Q: Where do you put static assets in a Vite project?
+    A: The /public/ folder. Files there are served as-is at the root URL.
+       Files in /src/ go through Vite's bundler (transformed, hashed, etc.).
+       Use /public/ for: favicon, robots.txt, og-images, PDF files.
+       Use /src/assets/ for: images imported directly in code (get hashed filenames).
+  -->
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!--
+    THE MOST IMPORTANT META TAG FOR MOBILE.
+
+    PROBLEM WITHOUT IT:
+    Mobile browsers default to a 980px viewport. They shrink the entire
+    page to fit the phone screen → text becomes tiny, nothing is clickable.
+
+    WITH IT:
+    width=device-width  → viewport width = the physical device screen width
+    initial-scale=1.0   → no zoom on initial load (1:1 pixel ratio)
+
+    INTERVIEW Q: What is the viewport meta tag and why is it critical?
+    A: It controls how the browser scales the page on mobile devices.
+       Without it, mobile browsers render at 980px wide and scale down —
+       making the responsive CSS breakpoints (sm:, md:, lg:) useless
+       because the browser thinks the screen is 980px wide regardless.
+  -->
+
+  <title>UGC AI | Create AI-generated images and videos</title>
+  <!--
+    Shown in: browser tab, bookmarks, Google search results (blue link text).
+
+    SEO BEST PRACTICES FOR TITLE:
+    • Include target keywords naturally ("AI-generated images and videos")
+    • Keep under 60 characters (Google truncates longer titles)
+    • Unique per page (this is the only HTML file, so this is the site-wide title)
+    • Brand name included ("UGC AI")
+
+    INTERVIEW Q: How does the page title affect SEO?
+    A: The <title> is one of the strongest on-page SEO signals.
+       Google uses it as the clickable headline in search results.
+       Including target keywords in the title improves click-through rate (CTR).
+  -->
+</head>
+
+<body>
+  <div id="root"></div>
+  <!--
+    THE MOUNT POINT FOR REACT.
+
+    This div starts completely EMPTY.
+    React will inject all its generated HTML inside this div.
+
+    In main.tsx:
+      createRoot(document.getElementById('root')).render(<App />)
+    This finds THIS div and makes React own it entirely.
+
+    WHY id="root"?
+    Conventional name used by Create React App, Vite React template, etc.
+    You can name it anything as long as main.tsx uses the same name.
+
+    INTERVIEW Q: What is React's Virtual DOM?
+    A: React maintains a lightweight JavaScript representation of the DOM.
+       When state changes, React compares the new virtual DOM with the previous
+       one (diffing), then applies only the minimal changes to the real DOM.
+       This is faster than rebuilding the entire DOM on every state change.
+  -->
+
+  <script type="module" src="/src/main.tsx"></script>
+  <!--
+    Loads main.tsx as a JavaScript ES module.
+
+    type="module":
+      Required for modern ES module syntax (import/export).
+      Without it, the browser treats the script as old-style JavaScript
+      and `import` statements cause syntax errors.
+      Modules are deferred by default (load after HTML parsing).
+
+    src="/src/main.tsx":
+      Vite intercepts this request.
+      Vite reads main.tsx, transpiles TypeScript → JavaScript,
+      processes imports, and serves the result to the browser instantly.
+      In production (after `vite build`), this becomes a hashed bundle file.
+
+    INTERVIEW Q: What does Vite do differently from Webpack?
+    A: In development, Vite uses native ES modules — no bundling.
+       Each imported file is served individually by the dev server.
+       Changes hot-reload in milliseconds (Webpack must re-bundle).
+       In production, Vite uses Rollup to create optimized bundles.
+  -->
+</body>
+</html>
+<!--
+  SECTION 7 — MEMORY NOTES
+  ✔ index.html = the ONLY html page in a SPA
+  ✔ <div id="root"> starts empty — React fills it
+  ✔ <script type="module"> loads main.tsx via Vite
+  ✔ charset="UTF-8" — always first, supports all characters
+  ✔ viewport meta — CRITICAL for mobile responsive CSS
+  ✔ <title> — shown in tabs and Google search results
+  ✔ /public/ folder = static files served at root URL
+
+  SECTION 9 — IF THIS FILE IS REMOVED
+  ✘ Browser has nothing to load — blank page or 404
+  ✘ No mount point → React cannot start
+  ✘ Entire frontend application dies
+-->

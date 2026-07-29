@@ -1,0 +1,262 @@
+// ============================================================
+// FILE: server/prisma/schema.prisma
+// ============================================================
+//
+// SECTION 1 — FILE PURPOSE
+// ─────────────────────────────────────────────────────────────
+// WHY THIS FILE EXISTS:
+//   The Prisma Schema is the SINGLE SOURCE OF TRUTH for the entire database.
+//   You write this declarative schema, and Prisma handles everything else:
+//   1. Generates TypeScript types for your models (auto-complete in controllers!)
+//   2. Generates SQL migration files to create/alter your database tables
+//   3. Generates the PrismaClient ORM used to query the database
+//
+// WORKFLOW:
+//   1. Edit schema.prisma (add a field, a model, a relation)
+//   2. Run: npx prisma migrate dev --name "your_change_description"
+//   3. Prisma generates a SQL migration file and applies it to the DB
+//   4. Prisma re-generates the PrismaClient with updated TypeScript types
+//
+// INTERVIEW Q: What is Prisma?
+// A: Prisma is a next-generation TypeScript ORM (Object-Relational Mapper).
+//    Instead of writing raw SQL, you define models in schema.prisma and
+//    use Prisma's type-safe client to query the DB. It catches type errors
+//    at compile time (e.g., passing a string where an Int is required).
+// ─────────────────────────────────────────────────────────────
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  // ── GENERATOR BLOCK ────────────────────────────────────────
+  // The generator block tells Prisma WHAT to generate.
+  //
+  // provider = "prisma-client"
+  //   → Generates the PrismaClient TypeScript library (the ORM).
+  //   → Old syntax was "prisma-client-js". Modern syntax is "prisma-client".
+  //
+  // output = "../generated/prisma"
+  //   → WHERE to save the generated client code.
+  //   → The generated folder contains TypeScript types for User, Project, etc.
+  //   → You import from this folder in your code:
+  //      import { PrismaClient } from '../generated/prisma/client.js'
+  //
+  // After any schema change, run: npx prisma generate
+  // to re-create the generated client with updated types.
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  // ── DATASOURCE BLOCK ────────────────────────────────────────
+  // Tells Prisma WHICH database to connect to and what dialect to use.
+  //
+  // provider = "postgresql"
+  //   → Prisma will generate PostgreSQL-compatible SQL.
+  //   → Other options: "mysql", "sqlite", "mongodb", "sqlserver".
+  //   → Affects the SQL syntax in migration files (e.g., SERIAL vs AUTO_INCREMENT).
+  //
+  // Note: The actual connection URL (DATABASE_URL) is intentionally NOT here!
+  // It is read from configs/prisma.ts via process.env.DATABASE_URL.
+  // Keeping credentials out of schema.prisma prevents accidental secret leaks.
+  provider = "postgresql"
+}
+
+// ── DATA MODELS ────────────────────────────────────────────
+// Each `model` block maps to a TABLE in the PostgreSQL database.
+// Each field maps to a COLUMN in that table.
+// Prisma generates TypeScript types matching each model.
+
+model User {
+  // ── FIELDS ─────────────────────────────────────────────────
+
+  id        String   @id
+  // @id → marks this as the PRIMARY KEY of the table.
+  // Type: String (not Int @default(autoincrement()))
+  // WHY STRING?
+  // The user's ID comes from CLERK, not from our database.
+  // When Clerk creates a user, it generates its own ID (e.g., "user_2abc123xyz").
+  // Our webhook (clerk.ts) receives this ID and stores it here.
+  // This means our User table ID exactly matches Clerk's User ID.
+  // Benefit: We can directly do prisma.user.findUnique({ where: { id: clerkUserId } })
+  // without needing a separate mapping table.
+
+  email     String
+  // The user's primary email address. Synced from Clerk via webhooks.
+
+  name      String
+  // Full name: data.first_name + " " + data.last_name (from Clerk webhook payload).
+
+  image     String
+  // URL to the user's profile photo (from Clerk / OAuth provider like Google).
+
+  credits   Int      @default(20)
+  // Credit balance for generating images and videos.
+  // @default(20) → Every new user starts with 20 FREE credits.
+  // This default is applied by the DATABASE when a new row is inserted.
+  // Prisma respects this and won't insert a value for `credits` if not provided.
+  //
+  // Credit costs:
+  //   Image generation: 5 credits (deducted in createProject controller)
+  //   Video generation: 10 credits (deducted in createVideo controller)
+
+  createdAt DateTime @default(now())
+  // Automatically set to the current timestamp when the row is created.
+  // @default(now()) = SQL: DEFAULT CURRENT_TIMESTAMP
+
+  updatedAt DateTime @updatedAt
+  // Automatically updated to the current timestamp whenever the row changes.
+  // @updatedAt = Prisma tells the DB driver to set this on every UPDATE.
+  // Useful for "last seen" logic, cache invalidation, audit trails.
+
+  // ── RELATIONS ──────────────────────────────────────────────
+  projects  Project[]
+  // One User can have MANY Projects → one-to-many relation.
+  // `Project[]` = an array of Project records.
+  // This is the "one" side of the relationship.
+  // On the Project model, there's a corresponding `user User @relation(...)`.
+  //
+  // In queries: prisma.user.findUnique({ include: { projects: true } })
+  // → Returns the user WITH all their projects embedded.
+}
+
+model Project {
+  // ── FIELDS ─────────────────────────────────────────────────
+
+  id                 String   @id @default(uuid())
+  // @default(uuid()) → Database automatically generates a random UUID (v4).
+  // UUID Example: "a3b4c5d6-e7f8-9012-abcd-ef1234567890"
+  // WHY UUID instead of sequential integer IDs?
+  // 1. Security: Attackers cannot enumerate records (1, 2, 3, ...)
+  //    They can't guess project ID "a3b4c5d6..." to access someone else's project.
+  // 2. Distributed systems: Multiple servers can generate IDs without coordination.
+  // 3. Globally unique: Can merge databases without ID collisions.
+
+  name               String
+  // The human-readable project name entered by the user (e.g., "Summer Campaign").
+
+  userId             String
+  // Foreign key: references User.id.
+  // Stores WHICH user created this project.
+  // Defined by the @relation below.
+
+  productName        String
+  // The product being featured in the UGC image (e.g., "Nike Air Max").
+
+  productDescription String   @default("")
+  // Optional product details passed to Gemini AI for context.
+  // @default("") → empty string instead of null. Avoids null-check complexity.
+
+  userPrompt         String   @default("")
+  // Optional additional instruction from the user for the AI.
+  // (e.g., "Make it look like a beach vacation photo")
+
+  aspectRatio        String   @default("9:16")
+  // Image/video aspect ratio. "9:16" = vertical (TikTok/Reels), "16:9" = horizontal.
+  // Passed to both Gemini image config and Veo video config.
+
+  targetLength       Int      @default(5)
+  // Target duration in seconds for the generated video.
+  // Currently set to 5s by default.
+
+  uploadedImages     String[]
+  // Array of Cloudinary URLs for the uploaded product + model images.
+  // In PostgreSQL, String[] = TEXT[] (native array column type).
+  // After upload, Cloudinary returns secure_url strings which we store here.
+  // Example: ["https://res.cloudinary.com/.../product.jpg", "https://.../model.jpg"]
+
+  generatedImage     String   @default("")
+  // Cloudinary URL of the AI-generated composite image.
+  // Empty string initially. Updated after Gemini image generation completes.
+
+  generatedVideo     String   @default("")
+  // Cloudinary URL of the AI-generated video.
+  // Empty string initially. Updated after Veo video generation completes.
+
+  isGenerating       Boolean  @default(false)
+  // TRUE while an AI job is in progress (image or video generation).
+  // The frontend polls the project endpoint every 10 seconds and checks this flag.
+  // When it flips to false, polling stops and the result is displayed.
+
+  isPublished        Boolean  @default(false)
+  // TRUE when the user clicks "Publish" → the project appears in the Community gallery.
+  // FALSE = private, only visible in "My Generations".
+
+  error              String   @default("")
+  // Stores error messages if the AI generation fails.
+  // Allows debugging without losing the project record.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── RELATIONS ──────────────────────────────────────────────
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Declares the Many-to-One relation back to User.
+  //
+  // fields: [userId]
+  //   → The foreign key column ON THIS TABLE is `userId`.
+  //
+  // references: [id]
+  //   → It references the `id` column on the User table.
+  //
+  // onDelete: Cascade
+  //   → If the User is DELETED, all their Projects are automatically deleted too.
+  //   → Without this, deleting a user would fail because projects still reference them.
+  //   → This is REFERENTIAL INTEGRITY — the DB ensures no orphaned rows.
+  //
+  // INTERVIEW Q: What is a CASCADE delete?
+  // A: A database constraint that automatically deletes related rows when the
+  //    parent row is deleted. Prevents orphaned data (projects without a user).
+  //    Alternative: SET NULL (set userId to NULL) or RESTRICT (block the delete).
+}
+
+/*
+  ============================================================
+  SECTION 3 — CONCEPT BOXES
+  ============================================================
+
+  CONCEPT: ORM vs Raw SQL
+  ─────────────────────────────────────────────────────────────
+  Raw SQL:
+    db.query("SELECT * FROM users WHERE id = $1", [userId])
+    → No type safety. Typos in column names crash at runtime.
+    → SQL injection risk if not parameterized correctly.
+    → Verbose for complex queries.
+
+  Prisma ORM:
+    prisma.user.findUnique({ where: { id: userId } })
+    → TypeScript knows `id` is a String. Type error if you pass a number.
+    → No SQL injection risk (Prisma parameterizes all queries).
+    → Readable, self-documenting syntax.
+    → Auto-generates types → full IDE autocomplete.
+
+  CONCEPT: Database Migrations
+  ─────────────────────────────────────────────────────────────
+  A migration = a versioned file describing a DB schema change.
+  
+  Example: Adding `credits` column to User table.
+  Migration file (SQL):
+    ALTER TABLE "User" ADD COLUMN "credits" INTEGER NOT NULL DEFAULT 20;
+  
+  Why migrations matter:
+  1. Version control for your database schema.
+  2. Reproducible: Any developer can rebuild the exact DB from migration history.
+  3. Safe rollbacks: If a migration breaks production, you can roll it back.
+  4. Team collaboration: Merge migration files like code files.
+
+  ============================================================
+  SECTION 7 — MEMORY NOTES
+  ============================================================
+  ✔ schema.prisma = single source of truth for database structure
+  ✔ User.id = String (from Clerk) — not auto-increment Int
+  ✔ User.credits @default(20) = free credits for every new signup
+  ✔ Project.id @default(uuid()) = random UUID for security
+  ✔ Project.uploadedImages String[] = PostgreSQL array column
+  ✔ Project.isGenerating = polled by frontend every 10s
+  ✔ onDelete: Cascade = deleting user deletes all their projects
+  ✔ @updatedAt = auto-updated timestamp on every row change
+  ✔ generator output "../generated/prisma" = where PrismaClient is generated
+*/

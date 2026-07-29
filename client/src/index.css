@@ -1,0 +1,379 @@
+/*
+  ============================================================
+  FILE: client/src/index.css
+  ============================================================
+
+  SECTION 1 — FILE PURPOSE
+  ─────────────────────────────────────────────────────────────
+  WHY THIS FILE EXISTS:
+    Global stylesheet for the entire app. Everything written here
+    applies to EVERY component without needing to import it in each file.
+    It is the design system foundation — fonts, colors, animations, themes.
+
+  WHEN IT EXECUTES:
+    Loaded via `import './index.css'` in main.tsx.
+    Vite processes it and injects it as a <style> tag in the browser.
+    It runs before React renders anything.
+
+  WHO CALLS IT:
+    main.tsx: import './index.css'
+
+  WHAT IT EXPORTS:
+    Nothing. CSS files don't export — they apply globally via the cascade.
+
+  WHERE IT SITS:
+    At the very top of the dependency chain.
+    Every component inherits from this file automatically.
+  ─────────────────────────────────────────────────────────────
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+/*
+  WHAT THIS DOES:
+    Loads the "Outfit" font family from Google Fonts CDN.
+
+  BREAKDOWN:
+    family=Outfit         → the font name
+    wght@100..900         → load all weights from Thin (100) to Black (900)
+                            This is a variable font — ONE file covers all weights.
+    &display=swap         → display strategy
+
+  WHAT IS display=swap?
+    By default (display=block), the browser hides text until the custom font loads.
+    This causes FOIT — Flash Of Invisible Text.
+    display=swap means: show a fallback system font immediately, then swap to
+    Outfit when it finishes loading.
+    Result: text is always visible. The swap happens seamlessly.
+
+  WHY OUTFIT FONT?
+    Outfit is a geometric sans-serif — clean, modern, highly legible at all sizes.
+    Perfect for SaaS/tech products that want a premium, minimal look.
+
+  INTERVIEW Q: What is a Google Font and how does it affect performance?
+  A: Google Fonts are hosted on Google's CDN. You link to them via @import.
+     Performance impact: an extra network request. Mitigate with:
+     1. display=swap (prevents FOIT)
+     2. preconnect hints: <link rel="preconnect" href="https://fonts.googleapis.com">
+     3. Self-hosting the font files for zero external dependency
+
+  CONCEPT — Font Loading Strategies:
+    block   → hide text until font loads (good for brand consistency, bad for UX)
+    swap    → show fallback, then swap (best for performance — USED HERE)
+    fallback → brief hide, then fallback if font doesn't load fast
+    optional → load only if already cached
+*/
+
+@import 'tailwindcss';
+/*
+  WHAT THIS DOES:
+    Imports the entire Tailwind CSS v4 utility class library.
+
+  WHAT IS TAILWIND CSS?
+    A utility-first CSS framework.
+    Instead of writing custom CSS classes:
+      .card { padding: 1rem; border-radius: 0.5rem; background: #1e293b; }
+    You apply pre-built single-purpose classes directly in JSX:
+      <div className="p-4 rounded-lg bg-slate-800">
+
+  WHY UTILITY-FIRST?
+    1. No naming problem — you don't invent class names like .card-header-wrapper
+    2. No context switching — styles are in the JSX, not a separate .css file
+    3. Consistent design — you use a predefined scale (p-4 = 1rem, not any random value)
+    4. Smaller CSS in production — Tailwind purges unused classes automatically
+
+  TAILWIND v4 DIFFERENCES:
+    Old v3: @tailwind base; @tailwind components; @tailwind utilities;
+    New v4: @import 'tailwindcss';   ← one line replaces all three
+
+  INTERVIEW Q: What is utility-first CSS vs. semantic CSS?
+  A: Semantic CSS: .login-button { padding: 12px; ... } — named by meaning.
+     Utility-first: <button class="px-3 py-2 bg-blue-500"> — composed from utilities.
+     Tailwind is utility-first. It trades semantic naming for speed and consistency.
+
+  COMMON MISTAKE:
+    Using @apply too much — writing custom classes that duplicate what Tailwind
+    already has. @apply should only be used for truly reusable custom patterns
+    (like .glass-panel defined below).
+*/
+
+* {
+    font-family: 'Outfit', sans-serif;
+}
+/*
+  THE * (UNIVERSAL) SELECTOR
+    Matches EVERY HTML element on the page.
+    Sets Outfit as the default font for everything.
+
+  WHY NOT body { font-family }?
+    Some elements override font-family from body:
+      • <input>, <textarea>, <select>, <button> use system fonts by default.
+    The * selector overrides ALL elements including form elements.
+
+  sans-serif
+    Fallback if Outfit fails to load.
+    sans-serif = the browser's default sans-serif system font
+    (e.g., Helvetica on Mac, Arial on Windows, Roboto on Android).
+
+  INTERVIEW Q: What is a CSS selector specificity?
+  A: Specificity determines which CSS rule "wins" when multiple rules target
+     the same element. Inline styles > IDs > classes > elements > *.
+     The * selector has 0 specificity — overridden by any class or element rule.
+*/
+
+@layer base {
+    body {
+        @apply bg-gray-950 text-white antialiased;
+    }
+    /*
+      @layer base
+        Tailwind's layer system. There are three layers: base, components, utilities.
+        Styles in `base` are applied first (lowest specificity).
+        Used for resetting/setting default element styles.
+
+      @apply
+        Tailwind's way to use utility classes inside CSS rules.
+        @apply bg-gray-950 text-white antialiased; is equivalent to:
+          background-color: #030712;   (bg-gray-950)
+          color: #ffffff;              (text-white)
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+
+      antialiased
+        Makes font rendering smoother on screens by using sub-pixel antialiasing.
+        Makes text appear crisper, especially white text on dark backgrounds.
+        Standard practice for dark-theme UIs.
+
+      bg-gray-950
+        Tailwind's darkest gray — #030712. Nearly black but slightly warmer.
+        Chosen over pure black (#000000) because pure black creates harsh
+        contrast. This gives a more premium, modern dark theme appearance.
+
+      INTERVIEW Q: What is @layer in Tailwind?
+      A: Tailwind has three cascade layers: base, components, utilities.
+         Using @layer ensures your custom styles are placed in the correct
+         layer so specificity works predictably with Tailwind's utilities.
+    */
+
+    button {
+        @apply cursor-pointer;
+    }
+    /*
+      Why this?
+      HTML <button> elements default to cursor: default (arrow) in some browsers.
+      But users EXPECT a hand/pointer cursor on clickable elements.
+      This globally fixes button cursor behavior.
+    */
+}
+
+@keyframes marquee {
+    0%   { transform: translateX(0%);   }
+    100% { transform: translateX(-50%); }
+}
+/*
+  WHAT IS THIS?
+    Defines a CSS animation called "marquee" for the scrolling logo strip in Hero.tsx.
+
+  HOW IT WORKS:
+    translateX() moves the element horizontally.
+    From 0% (normal position) to -50% (moved left by half its width).
+
+  WHY -50% AND NOT -100%?
+    The content is DUPLICATED — rendered twice side by side:
+      [Adobe | Figma | Canva | Shopify | Webflow | Adobe | Figma | Canva | Shopify | Webflow]
+      ←── first copy ──────────────────────────────→ ←── second copy ──────────────────────→
+
+    When the animation moves the whole strip -50%, the first copy slides off the left edge.
+    At exactly that point, the second copy has moved into the EXACT same position as
+    the original first copy. The loop resets and nobody sees a jump.
+
+    This is the "seamless infinite scroll" technique.
+
+  REAL LIFE ANALOGY:
+    Like a treadmill belt — it keeps going in one direction but the surface
+    loops back seamlessly. You never see the end.
+
+  INTERVIEW Q: How do you create an infinite text/logo scroll without JavaScript?
+  A: Duplicate the content, then use @keyframes with translateX(-50%).
+     The duplication + -50% offset creates a seamless loop.
+     Use `animation: name duration linear infinite` to run it forever.
+*/
+
+.animate-marquee {
+    display: inline-flex;
+    animation: marquee 16s linear infinite;
+}
+/*
+  Applies the marquee animation.
+
+  display: inline-flex
+    Puts all logo spans in a horizontal row.
+    flex is needed so they don't wrap to new lines.
+
+  16s → complete one loop in 16 seconds (slow = readable).
+  linear → constant speed (no easing — easing would look jerky on a loop).
+  infinite → never stops.
+*/
+
+@keyframes float {
+    0%   { transform: translateY(0);    }
+    50%  { transform: translateY(-5px); }
+    100% { transform: translateY(0);    }
+}
+/*
+  A gentle up-and-down floating animation.
+  Used on the circular source images in ProjectCard.tsx.
+
+  0%→50%: element moves 5px upward (translateY: negative = up).
+  50%→100%: element returns to original position.
+  Creates a soft "hovering" bob — makes the UI feel alive.
+
+  5px is intentionally subtle — too much movement is distracting.
+*/
+
+.animate-float {
+    animation: float 5s ease-in-out infinite;
+}
+/*
+  5s → slow, relaxing bob cycle.
+  ease-in-out → starts slow, speeds up in the middle, slows at end.
+                This mimics natural physics (inertia) — feels organic.
+  infinite → runs forever.
+
+  Note in ProjectCard.tsx:
+    <img style={{ animationDelay: "3s" }} />
+    The second image has a 3s delay so both images float OUT OF SYNC.
+    This creates a natural, non-robotic movement pattern.
+*/
+
+@theme {
+    --color-primary: #8b5cf6;
+    --color-primary-hover: #7c3aed;
+    --color-secondary: #ec4899;
+    --color-dark-bg: #0f172a;
+    --color-dark-card: #1e293b;
+}
+/*
+  WHAT IS @theme?
+    A Tailwind v4 feature for defining DESIGN TOKENS as CSS custom properties.
+
+  WHAT ARE DESIGN TOKENS?
+    Named, reusable values that represent design decisions.
+    Instead of writing #8b5cf6 everywhere, you write "primary color".
+    If the brand color changes, update ONE place → entire app updates.
+
+  HOW ARE THEY USED IN JSX?
+    These tokens become Tailwind utility classes automatically:
+      bg-primary         → background: #8b5cf6
+      text-secondary     → color: #ec4899
+      bg-dark-bg         → background: #0f172a
+
+  CONCEPT — CSS Custom Properties (Variables):
+    --color-primary: #8b5cf6
+    is a CSS variable. You use it as: color: var(--color-primary)
+    Tailwind v4 reads @theme and generates utility classes from them.
+
+  INTERVIEW Q: What is the difference between SCSS variables and CSS variables?
+  A: SCSS variables ($color: red) are resolved at COMPILE time — they're static.
+     CSS variables (--color: red) are resolved at RUNTIME — they can be changed
+     dynamically with JavaScript: document.body.style.setProperty('--color', 'blue')
+     CSS variables also cascade and inherit through the DOM.
+     This makes CSS variables better for theming (dark/light mode switching).
+*/
+
+@layer utilities {
+    .glass-panel {
+        @apply bg-white/5 backdrop-blur-lg border border-white/10 shadow-xl;
+    }
+    /*
+      WHAT IS GLASSMORPHISM?
+        A design trend where UI elements look like frosted glass:
+        • Semi-transparent background
+        • Blur effect on content behind the element
+        • Subtle border for definition
+        • Drop shadow for depth
+
+      HOW IS IT ACHIEVED IN CSS?
+        bg-white/5         → white background at 5% opacity (nearly transparent)
+        backdrop-blur-lg   → CSS: backdrop-filter: blur(16px)
+                             This blurs whatever is BEHIND the element (not the element itself).
+                             IMPORTANT: backdrop-filter only works if the background has opacity < 1.
+        border-white/10    → 1px border at 10% white opacity — barely visible
+        shadow-xl          → large drop shadow for depth
+
+      WHERE IS IT USED?
+        In Result.tsx: <div className="glass-panel ..."> — the generated image card.
+        In ProjectCard's action panel.
+        .btn-secondary also uses glass styling.
+
+      INTERVIEW Q: What is backdrop-filter and what are its limitations?
+      A: backdrop-filter applies CSS filter effects (blur, brightness, contrast) to
+         the area BEHIND an element. It requires the element to have transparency.
+         Browser support is now excellent, but it can impact GPU performance
+         when many elements use it simultaneously.
+
+      WHY @layer utilities?
+        Placing custom classes in the `utilities` layer gives them the same
+        specificity as Tailwind utilities. They can be overridden by other
+        Tailwind classes or inline styles as expected.
+    */
+
+    .btn-secondary {
+        @apply px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white
+               font-semibold backdrop-blur-sm border border-white/10 transition-all duration-300;
+    }
+    /*
+      A secondary action button style — glassy, less prominent than the primary gradient button.
+      Used in Result.tsx for the "New Generation" link.
+
+      bg-white/10     → slightly more visible than glass-panel (10% vs 5%)
+      hover:bg-white/20 → doubles opacity on hover for clear feedback
+      backdrop-blur-sm  → lighter blur than glass-panel (sm vs lg)
+      rounded-xl      → 12px border radius (slightly squarish, not pill-shaped)
+      duration-300    → 300ms transition — fast enough to feel responsive
+    */
+}
+
+/*
+  ============================================================
+  SECTION 3 — CONCEPT BOXES
+  ============================================================
+
+  CONCEPT: CSS Cascade and Specificity
+  ──────────────────────────────────────
+    The cascade determines which CSS rule applies when multiple
+    rules target the same element.
+
+    Specificity hierarchy (highest to lowest):
+    1. Inline styles:     style="color: red"           (1000 points)
+    2. ID selectors:      #header { color: red }        (100 points)
+    3. Class selectors:   .navbar { color: red }        (10 points)
+    4. Element selectors: div { color: red }            (1 point)
+    5. Universal:         * { color: red }              (0 points)
+
+    Tailwind utility classes are class selectors (10 points).
+    They override base/element styles but can be overridden by inline styles.
+
+  CONCEPT: @layer in Tailwind
+  ────────────────────────────
+    The three Tailwind layers in order of precedence:
+    1. base       → Lowest specificity. Default element styles (body, button).
+    2. components → Medium. Reusable component classes (.glass-panel, .card).
+    3. utilities  → Highest. Single-purpose utilities (p-4, text-white).
+
+    By putting custom classes in the correct layer, they behave predictably
+    with Tailwind's built-in utilities.
+
+  ============================================================
+  SECTION 7 — MEMORY NOTES
+  ============================================================
+  ✔ @import 'tailwindcss' → loads all Tailwind v4 utilities
+  ✔ @import Google Fonts → loads Outfit font from CDN
+  ✔ * { font-family } → overrides ALL elements including inputs/buttons
+  ✔ @layer base → lowest specificity default styles
+  ✔ @keyframes marquee → infinite scroll (content duplicated + -50% trick)
+  ✔ @keyframes float → gentle bobbing animation for images
+  ✔ @theme → design token CSS variables → become Tailwind classes
+  ✔ .glass-panel → glassmorphism: backdrop-blur + transparent bg + subtle border
+  ✔ display=swap on Google Font → prevents FOIT (Flash of Invisible Text)
+  ✔ antialiased → smoother text rendering on dark backgrounds
+*/

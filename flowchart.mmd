@@ -1,0 +1,26 @@
+graph TD
+    %% Entities
+    User((User))
+    Client[React Frontend / Vite]
+    Server[Express Backend Node.js]
+    DB[(PostgreSQL / Prisma)]
+    Clerk[Clerk Authentication]
+    Cloudinary[Cloudinary Cloud Storage]
+    Gemini[Google Generative AI]
+    
+    %% Authentication Flow
+    User -->|Visits App & Signs In| Client
+    Client <-->|Token & Session Auth| Clerk
+    Clerk -->|Webhook: User Sync| Server
+    Server -->|Saves User Profile| DB
+
+    %% Content Generation Flow
+    User -->|Enters Prompt & Uploads Image| Client
+    Client -->|API Request: Create Project| Server
+    Server -->|Uploads User Media| Cloudinary
+    Cloudinary -->|Returns Media URLs| Server
+    Server -->|Sends Prompt + Media| Gemini
+    Gemini -->|Returns Generated Content| Server
+    Server -->|Saves Generated URLs & State| DB
+    Server -->|API Response: Result Ready| Client
+    Client -->|Displays Generated UGC| User
