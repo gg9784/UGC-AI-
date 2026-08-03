@@ -96,7 +96,6 @@ export default function Hero() {
                                 whileInView={{ y: 0, opacity: 1 }}
                                 viewport={{ once: true }}
                                 transition={{ type: "spring", stiffness: 250, damping: 70, mass: 1, delay: 0.1 }}
-                                {/* delay: 0.1 creates a staggered entrance sequence! */}
                             >
                                 Create viral UGC <br />
                                 {/* Gradient text trick: transparent text color + background-clip */}

@@ -2,183 +2,41 @@
   "name": "server",
   "version": "1.0.0",
   "main": "index.js",
-
   "type": "module",
-  // ↑ "type": "module" tells Node.js to treat ALL .js files in this directory
-  // as ES Modules (ESM) — the modern standard.
-  //
-  // ES Module syntax (what we use):
-  //   import express from 'express'        ← import keyword
-  //   export const protect = ...           ← export keyword
-  //
-  // CommonJS syntax (old Node.js default):
-  //   const express = require('express')   ← require function
-  //   module.exports = { protect }         ← module.exports
-  //
-  // WHY DOES THIS MATTER?
-  //   "type": "module" also means our import paths MUST use .js extensions
-  //   (e.g., import X from './configs/prisma.js', NOT './configs/prisma').
-  //   TypeScript understands this: when it sees '.js', it looks for '.ts' source.
-  //
-  // INTERVIEW Q: What is the difference between ESM and CommonJS?
-  // A: CommonJS (CJS) = Node.js's original module system using require/module.exports.
-  //    Synchronous, runs the whole file to get exports.
-  //    ESM = the modern JavaScript standard using import/export.
-  //    Can be statically analyzed (tree-shaking), supports top-level await.
-  //    The ecosystem is migrating to ESM. "type": "module" opts in.
-
   "scripts": {
     "postinstall": "npx prisma generate",
-    // postinstall runs AUTOMATICALLY after `npm install` completes.
-    // `npx prisma generate` reads schema.prisma and generates the TypeScript
-    // PrismaClient code into `../generated/prisma/`.
-    // WHY AUTOMATE THIS? After cloning the repo and running npm install,
-    // the generated folder doesn't exist yet. Without this, the server
-    // would fail immediately with "Cannot find module '../generated/prisma/client.js'".
-    // postinstall ensures the generated code always exists after installing deps.
-    // This is critical for CI/CD pipelines and team members setting up locally.
-
     "start": "tsx server.ts",
-    // tsx = TypeScript Execute. Like `ts-node` but faster (uses esbuild to transpile).
-    // Runs TypeScript files DIRECTLY without a separate compile step.
-    // "start" is the standard production start script (used by platforms like Railway, Render).
-    //
-    // HOW IT WORKS:
-    // Normal flow: TypeScript → tsc → JavaScript → node
-    // tsx flow:    TypeScript → tsx (inline transpile) → runs immediately
-    // tsx is great for development and simple deployments.
-    // For high-traffic production: pre-compile with `tsc` and run plain `node`.
-
     "server": "nodemon --exec tsx server.ts",
-    // nodemon = a utility that watches files for changes and restarts automatically.
-    // --exec tsx server.ts = instead of running the file with node, use tsx.
-    //
-    // DEVELOPMENT WORKFLOW:
-    // You run `npm run server` once.
-    // You edit projectController.ts and save.
-    // nodemon detects the change and restarts the server in ~1 second.
-    // No manual Ctrl+C + rerun needed. Huge productivity boost.
-    //
-    // INTERVIEW Q: What is nodemon used for?
-    // A: A development tool that watches source files and automatically restarts
-    //    the Node.js server when files change. Eliminates the need to manually
-    //    restart the server after every code edit.
-
     "build": "tsc"
-    // tsc = TypeScript Compiler.
-    // Reads tsconfig.json for configuration.
-    // Compiles all .ts files to .js files (for production deployment without tsx).
-    // Output goes to the directory specified by `outDir` in tsconfig.json.
-    // Use case: Vercel/Railway build step before deploying compiled JS.
   },
-
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
-
   "dependencies": {
-    // ── PRODUCTION DEPENDENCIES ──────────────────────────────────────────────
-    // These are required at RUNTIME (in production).
-
     "@clerk/express": "^1.7.61",
-    // Clerk's Express SDK. Provides:
-    //   clerkMiddleware()  → attaches req.auth() to every request
-    //   verifyWebhook()    → validates incoming Clerk webhook signatures
-
     "@google/genai": "^1.35.0",
-    // Google's official SDK for Gemini AI (text, image, video generation)
-    // and Veo (video generation). Used in projectController.ts.
-
     "@prisma/adapter-pg": "^7.2.0",
-    // PostgreSQL adapter for Prisma 5+.
-    // Allows Prisma to use the 'pg' driver with custom connection configuration.
-    // Required when using PrismaPg (as in configs/prisma.ts).
-
     "@prisma/client": "^7.2.0",
-    // The runtime Prisma ORM client library.
-    // The generated PrismaClient (in ../generated/prisma) extends this package.
-    // This must be a dependency for the app to run — even though the actual
-    // client code is generated, it depends on this base package at runtime.
-
     "@sentry/node": "^10.32.1",
-    // Sentry's Node.js SDK for error monitoring.
-    // Automatically captures Express request context, user info, and breadcrumbs.
-
     "axios": "^1.13.2",
-    // HTTP client for Node.js. Used in createVideo() to download the generated
-    // image from Cloudinary as a binary arraybuffer.
-
     "cloudinary": "^2.8.0",
-    // Cloudinary Node.js SDK.
-    // cloudinary.uploader.upload() = upload images/videos to Cloudinary CDN.
-    // Reads CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET from env.
-
     "cors": "^2.8.5",
-    // Express CORS middleware.
-    // Adds Access-Control-Allow-Origin headers so the browser allows
-    // cross-origin fetch requests from the React frontend.
-
     "dotenv": "^17.2.3",
-    // Loads .env file variables into process.env.
-    // Imported as: import 'dotenv/config' (the side-effect import style)
-
     "express": "^5.2.1",
-    // The core web framework. Version 5 (latest) includes async error handling
-    // improvements over v4 (no need for manual try/catch wrappers in async routes).
-
     "multer": "^2.0.2",
-    // Middleware for handling multipart/form-data (file uploads).
-    // Parses file uploads from HTML forms and makes them available as req.files.
-
     "pg": "^8.16.3"
-    // The 'pg' (node-postgres) package — the actual PostgreSQL driver.
-    // Provides the low-level TCP connection to the PostgreSQL database.
-    // Prisma uses this under the hood through @prisma/adapter-pg.
   },
-
   "devDependencies": {
-    // ── DEVELOPMENT DEPENDENCIES ─────────────────────────────────────────────
-    // Only needed during development and build. NOT installed in production.
-
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.0.0",
     "@types/node": "^25.0.3",
     "@types/pg": "^8.16.0",
-    // These are TypeScript type definition packages (from DefinitelyTyped).
-    // They provide TypeScript type information for JavaScript libraries
-    // that weren't written in TypeScript.
-    // Without @types/express: TypeScript doesn't know the shape of `req`, `res`.
-    // Without @types/node: TypeScript doesn't know about Node.js globals like `process.env`.
-    //
-    // INTERVIEW Q: Why do some packages need @types/X separately?
-    // A: Because those packages were written in JavaScript before TypeScript existed.
-    //    The community created @types/* packages on DefinitelyTyped to provide
-    //    type definitions. Modern packages (like @clerk/express) ship their own
-    //    types internally and don't need a separate @types package.
-
     "nodemon": "^3.1.11",
-    // Dev-only: watches files and restarts the server on changes.
-    // NOT needed in production (production apps don't auto-restart on changes).
-
     "prisma": "^7.2.0",
-    // The Prisma CLI (Command Line Interface). Used for:
-    //   npx prisma migrate dev   → create and apply migrations
-    //   npx prisma generate      → re-generate PrismaClient from schema
-    //   npx prisma studio        → visual DB browser in the browser
-    // Separate from @prisma/client (the runtime client).
-
     "ts-node": "^10.9.2",
-    // Runs TypeScript files directly (older alternative to tsx).
-    // Less commonly used now that tsx is available.
-
     "tsx": "^4.21.0",
-    // TypeScript Execute — faster TypeScript runner using esbuild.
-    // Used by the "start" and "server" npm scripts.
-
     "typescript": "^5.9.3"
-    // The TypeScript compiler itself. Provides the `tsc` command.
-    // Required to compile TypeScript to JavaScript (the "build" script).
   }
 }

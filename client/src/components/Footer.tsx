@@ -51,30 +51,10 @@ export default function Footer() {
 
     return (
         <motion.footer className="bg-white/6 border-t border-white/6 pt-10 text-gray-300"
-        {/*
-          motion.footer = animated native <footer> element.
-          
-          <footer> is a semantic HTML5 element for site/page footer content.
-          WHY SEMANTIC HTML?
-          Screen readers announce "footer" to users, providing context.
-          Search engines understand site structure better with semantic elements.
-          Other semantic elements: <header>, <nav>, <main>, <article>, <section>, <aside>
-          
-          bg-white/6 → 6% white background = slightly lighter than the page bg
-          border-t border-white/6 → top border separating footer from page content
-          pt-10 → 40px top padding
-          text-gray-300 → default text color for footer (muted, not full white)
-        */}
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ type: "spring", duration: 0.5 }}
-            {/*
-              Simple fade-in animation (opacity only, no translate).
-              Footer is at the very bottom — users scroll to reach it.
-              A fade-in feels appropriate without a slide-up effect.
-              duration: 0.5 → 500ms for the fade (short, not dramatic).
-            */}
         >
             <div className="max-w-6xl mx-auto px-6">
 

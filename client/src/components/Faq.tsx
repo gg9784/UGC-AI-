@@ -72,28 +72,7 @@ export default function Faq() {
 
                     {faqData.map((faq, i) => (
                         <motion.details
-                        {/*
-                          motion.details = Framer Motion's version of the native <details> element.
-                          Framer Motion can wrap ANY HTML element: motion.div, motion.nav, motion.details
-                          The animated element still has all native HTML behavior.
-                          
-                          NATIVE <details>/<summary> BEHAVIOR:
-                          <details>
-                            <summary>Question text</summary>
-                            Answer text (hidden by default)
-                          </details>
-                          
-                          • Clicking the <summary> toggles the <details> open/closed.
-                          • When open: the full content (answer) becomes visible.
-                          • The browser adds the `open` attribute to <details> when expanded.
-                          • No JavaScript needed — this is 100% native browser behavior.
-                          
-                          INTERVIEW Q: What is the <details> element?
-                          A: A native HTML disclosure widget. When closed, it shows only the
-                             <summary> child. When opened (via click), it reveals all other children.
-                             The browser toggles the `open` attribute automatically.
-                             No JavaScript or state management needed for basic accordion behavior.
-                        */}
+
                             ref={(el) => {
                                 refs.current[i] = el;
                             }}
