@@ -23,7 +23,7 @@
 //   }
 // ─────────────────────────────────────────────────────────────
 
-import {Request, Response} from 'express'
+import { Request, Response } from 'express'
 // Request  = TypeScript type for incoming HTTP request objects.
 // Response = TypeScript type for outgoing HTTP response objects.
 // These are used to type the function parameters: (req: Request, res: Response)
@@ -40,28 +40,28 @@ import { prisma } from '../configs/prisma.js';
 export const getUserCredits = async (req: Request, res: Response) => {
     try {
 
-        const {userId} = req.auth();
+        const { userId } = req.auth();
         // req.auth() is injected by Clerk's middleware.
         // Returns { userId, has } for the authenticated user.
         // We destructure userId to identify who is making the request.
         // CRITICAL: userId is a Clerk User ID (e.g., "user_2abc123xyz").
         // This matches the `id` column in our User table (from clerk.ts webhook).
 
-        if(!userId) {return res.status(401).json({message: 'Unauthorized'})}
+        if (!userId) { return res.status(401).json({ message: 'Unauthorized' }) }
         // Defensive check: if for any reason userId is falsy (shouldn't happen
         // after `protect` middleware), return 401 Unauthorized.
         // This is the "belt AND suspenders" approach to security.
 
         const user = await prisma.user.findUnique({
-            where: {id: userId}
+            where: { id: userId }
         })
-        // findUnique → SQL: SELECT * FROM "User" WHERE id = $1 LIMIT 1
+        // findUnique → SQL: SELECT * FROM "User" WHERE id = $1 LIMIT 1 
         // Returns the User object or null if not found.
         // We only need the `credits` field, but Prisma returns the full row.
         // Optimization: prisma.user.findUnique({ where: {...}, select: { credits: true } })
         // would return only the credits column (saves bandwidth for large rows).
 
-        res.json({credits: user?.credits})
+        res.json({ credits: user?.credits })
         // user?.credits uses optional chaining (?.) in case user is null.
         // If user is null: returns { credits: undefined }
         // Could be improved: if(!user) return res.status(404).json({message: 'User not found'})
@@ -69,8 +69,8 @@ export const getUserCredits = async (req: Request, res: Response) => {
     } catch (error: any) {
         Sentry.captureException(error);
         // Reports error to Sentry dashboard with context and stack trace.
-        res.status(500).json({message: error.code || error.message})
-        // error.code = Prisma-specific error codes (e.g., "P2025" = record not found)
+        res.status(500).json({ message: error.code || error.message })
+        // error.code = Pri sma-specific error codes (e.g., "P2025" = record not found)
         // error.message = the generic JavaScript error message
         // We prefer the Prisma code if available (more descriptive for DB errors).
     }
@@ -81,27 +81,27 @@ export const getUserCredits = async (req: Request, res: Response) => {
 export const getAllProjects = async (req: Request, res: Response) => {
     try {
 
-        const {userId} = req.auth();
+        const { userId } = req.auth();
 
         const projects = await prisma.project.findMany({
-            where: {userId},
+            where: { userId },
             // findMany with `where` = SELECT * FROM "Project" WHERE userId = $1
             // Only returns projects OWNED by this user (userId = their Clerk ID).
             // Other users' projects are invisible — this is AUTHORIZATION.
 
-            orderBy: {createdAt: 'desc'}
+            orderBy: { createdAt: 'desc' }
             // Most recent projects appear first (descending = newest to oldest).
             // SQL: ORDER BY createdAt DESC
         })
 
-        res.json({projects})
+        res.json({ projects })
         // Sends the array of projects as JSON.
         // Frontend: `const { data } = await api.get('/api/user/projects')`
         //            `data.projects` is this array.
 
     } catch (error: any) {
         Sentry.captureException(error);
-        res.status(500).json({message: error.code || error.message})
+        res.status(500).json({ message: error.code || error.message })
     }
 }
 
@@ -110,14 +110,14 @@ export const getAllProjects = async (req: Request, res: Response) => {
 export const getProjectById = async (req: Request, res: Response) => {
     try {
 
-        const {userId} = req.auth();
-        const {projectId} = req.params;
+        const { userId } = req.auth();
+        const { projectId } = req.params;
         // req.params contains URL parameters.
         // Route: /projects/:projectId → req.params.projectId = the actual ID
         // Example: GET /api/user/projects/abc-123 → projectId = "abc-123"
 
         const project = await prisma.project.findUnique({
-            where: {id: projectId, userId}
+            where: { id: projectId, userId }
             // SECURITY: The `where` clause includes BOTH id AND userId.
             // SQL: SELECT * FROM "Project" WHERE id = $1 AND userId = $2
             // This means even if a user knows another project's ID,
@@ -125,18 +125,18 @@ export const getProjectById = async (req: Request, res: Response) => {
             // Without this: any authenticated user could access ANY project by guessing the ID.
         })
 
-        if(!project) { return res.status(404).json({message: 'Project not found' })}
+        if (!project) { return res.status(404).json({ message: 'Project not found' }) }
         // 404 = Not Found.
         // This handles two cases:
         // 1. Project ID doesn't exist in the DB (typo or deleted project).
         // 2. Project exists but belongs to a DIFFERENT user (the userId filter returned null).
         // We return the same 404 for both cases intentionally (don't leak info about other users' projects).
 
-        res.json({project})
-        
+        res.json({ project })
+
     } catch (error: any) {
         Sentry.captureException(error);
-        res.status(500).json({message: error.code || error.message})
+        res.status(500).json({ message: error.code || error.message })
     }
 }
 
@@ -144,26 +144,26 @@ export const getProjectById = async (req: Request, res: Response) => {
 // GET /api/user/publish/:projectId (via userRoutes.ts)
 export const toggleProjectPublic = async (req: Request, res: Response) => {
     try {
-        
-        const {userId} = req.auth();
-        const {projectId} = req.params;
+
+        const { userId } = req.auth();
+        const { projectId } = req.params;
 
         const project = await prisma.project.findUnique({
-            where: {id: projectId, userId}
+            where: { id: projectId, userId }
         })
 
-        if(!project) { return res.status(404).json({message: 'Project not found' })}
+        if (!project) { return res.status(404).json({ message: 'Project not found' }) }
 
-        if(!project?.generatedImage && !project?.generatedVideo){
-            return res.status(404).json({message: 'image or video not generated'})
+        if (!project?.generatedImage && !project?.generatedVideo) {
+            return res.status(404).json({ message: 'image or video not generated' })
             // Validation: you can only publish projects with generated content.
             // Prevents publishing a blank/failed project to the community gallery.
             // Without this check, a user could publish a project that's still generating.
         }
 
         await prisma.project.update({
-            where: {id: projectId},
-            data: {isPublished: !project.isPublished}
+            where: { id: projectId },
+            data: { isPublished: !project.isPublished }
             // TOGGLE LOGIC: flip the boolean.
             // If isPublished = true → set to false (Unpublish)
             // If isPublished = false → set to true (Publish)
@@ -171,7 +171,7 @@ export const toggleProjectPublic = async (req: Request, res: Response) => {
             // SQL: UPDATE "Project" SET isPublished = NOT isPublished WHERE id = $1
         })
 
-        res.json({isPublished: !project.isPublished})
+        res.json({ isPublished: !project.isPublished })
         // Returns the NEW value of isPublished (the toggled state).
         // Frontend (ProjectCard.tsx) uses this to update the button label
         // ("Publish" ↔ "Unpublish") without re-fetching the full project.
@@ -180,7 +180,7 @@ export const toggleProjectPublic = async (req: Request, res: Response) => {
 
     } catch (error: any) {
         Sentry.captureException(error);
-        res.status(500).json({message: error.code || error.message})
+        res.status(500).json({ message: error.code || error.message })
     }
 }
 

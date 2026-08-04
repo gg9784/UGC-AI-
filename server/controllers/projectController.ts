@@ -18,11 +18,11 @@
 //   • Base64 Image Encoding (for passing images to the Gemini API)
 // ─────────────────────────────────────────────────────────────
 
-import {Request, Response } from 'express'
+import { Request, Response } from 'express'
 import * as Sentry from "@sentry/node";
 import { prisma } from '../configs/prisma.js';
 
-import {v2 as cloudinary } from 'cloudinary'
+import { v2 as cloudinary } from 'cloudinary'
 // cloudinary = the v2 (latest) Node.js SDK for Cloudinary CDN.
 // Cloudinary = cloud media storage and transformation service.
 // All images and videos are uploaded HERE, not stored on our server disk.
@@ -34,7 +34,7 @@ import {v2 as cloudinary } from 'cloudinary'
 // The credentials (CLOUDINARY_CLOUD_NAME, API_KEY, API_SECRET) are read
 // from .env automatically when cloudinary is imported.
 
-import {GenerateContentConfig, HarmBlockThreshold, HarmCategory} from '@google/genai'
+import { GenerateContentConfig, HarmBlockThreshold, HarmCategory } from '@google/genai'
 // Importing specific TypeScript types/enums from the Google Gen AI SDK.
 // GenerateContentConfig = TypeScript type for the config object passed to generateContent().
 // HarmCategory = enum of AI safety categories (HATE_SPEECH, DANGEROUS_CONTENT, etc.)
@@ -89,7 +89,7 @@ const loadImage = (path: string, mimeType: string) => {
 
 // ── CONTROLLER: createProject ─────────────────────────────
 // POST /api/project/create (via projectRoutes.ts)
-export const createProject = async (req:Request, res: Response) => {
+export const createProject = async (req: Request, res: Response) => {
     let tempProjectId: string;
     // Stores the created project's ID for error recovery.
     // Declared with `let` outside try block so the catch block can access it.
@@ -101,7 +101,7 @@ export const createProject = async (req:Request, res: Response) => {
     // If the AI call fails AFTER credit deduction, we refund them.
     // This is the "manual rollback" pattern (no DB transactions used here).
 
-    const {name = 'New Project', aspectRatio, userPrompt, productName, productDescription, targetLength = 5} = req.body;
+    const { name = 'New Project', aspectRatio, userPrompt, productName, productDescription, targetLength = 5 } = req.body;
     // Destructure form fields from the request body.
     // req.body is populated by express.json() for JSON bodies OR by Multer for multipart forms.
     // Default values: name defaults to 'New Project', targetLength defaults to 5.
@@ -112,29 +112,29 @@ export const createProject = async (req:Request, res: Response) => {
     // We cast to `any` to avoid verbose Multer type declarations.
 
     // VALIDATION
-    if(images.length < 2 || !productName){
-        return res.status(400).json({message: 'Please upload at least 2 images'})
+    if (images.length < 2 || !productName) {
+        return res.status(400).json({ message: 'Please upload at least 2 images' })
     }
     // Requires exactly 2 images (product + model) and a product name.
     // 400 = Bad Request (client sent invalid data).
 
     // CREDIT CHECK (outside try block — part of business logic, not error handling)
     const user = await prisma.user.findUnique({
-        where: {id: userId}
+        where: { id: userId }
     })
 
-    if(!user || user.credits < 5){
-        return res.status(401).json({message: 'Insufficient credits'})
+    if (!user || user.credits < 5) {
+        return res.status(401).json({ message: 'Insufficient credits' })
         // Image generation costs 5 credits.
         // Return 401 if credits are too low (could also be 402 Payment Required).
     } else {
         await prisma.user.update({
-            where: {id: userId},
-            data: {credits: {decrement: 5}}
+            where: { id: userId },
+            data: { credits: { decrement: 5 } }
             // {decrement: 5} = Prisma shorthand for: credits = credits - 5
             // Atomic operation — prevents race conditions where two simultaneous
             // requests both read credits=10 and both decrement to 5 instead of 0.
-        }).then(() => {isCreditDeducted = true});
+        }).then(() => { isCreditDeducted = true });
         // Set the flag ONLY after successful deduction.
         // If the update fails, isCreditDeducted remains false → no refund needed.
     }
@@ -142,8 +142,8 @@ export const createProject = async (req:Request, res: Response) => {
     try {
         // ── STEP 1: UPLOAD SOURCE IMAGES TO CLOUDINARY ──
         let uploadedImages = await Promise.all(
-            images.map(async(item: any)=>{
-                let result = await cloudinary.uploader.upload(item.path, {resource_type: 'image'});
+            images.map(async (item: any) => {
+                let result = await cloudinary.uploader.upload(item.path, { resource_type: 'image' });
                 return result.secure_url
             })
         )
@@ -161,7 +161,7 @@ export const createProject = async (req:Request, res: Response) => {
         //    Used to run multiple async operations IN PARALLEL instead of sequentially.
 
         // ── STEP 2: CREATE PROJECT RECORD IN DB ──
-         const project = await prisma.project.create({
+        const project = await prisma.project.create({
             data: {
                 name,
                 userId,
@@ -176,16 +176,16 @@ export const createProject = async (req:Request, res: Response) => {
                 isGenerating: true
                 // Mark as generating — frontend polls every 10s and waits for false.
             }
-         })
-         tempProjectId = project.id;
-         // Save project ID for error recovery in the catch block.
+        })
+        tempProjectId = project.id;
+        // Save project ID for error recovery in the catch block.
 
         // ── STEP 3: CONFIGURE GEMINI AI ──
-         const model = 'gemini-3-pro-image-preview';
-         // The specific Gemini model for image generation.
-         // Different models have different capabilities, costs, and quality levels.
+        const model = 'gemini-3-pro-image-preview';
+        // The specific Gemini model for image generation.
+        // Different models have different capabilities, costs, and quality levels.
 
-         const generationConfig: GenerateContentConfig = {
+        const generationConfig: GenerateContentConfig = {
             maxOutputTokens: 32768,
             // Maximum tokens in the response. Higher = more detail in generated output.
             // For images, this controls the image data size.
@@ -224,16 +224,16 @@ export const createProject = async (req:Request, res: Response) => {
                     threshold: HarmBlockThreshold.OFF,
                 },
             ]
-         }
+        }
 
         // ── STEP 4: PREPARE IMAGES FOR GEMINI ──
-         const img1base64 = loadImage(images[0].path, images[0].mimetype);
-         const img2base64 = loadImage(images[1].path, images[1].mimetype);
-         // Read files from disk temp location and encode as base64.
-         // images[0] = product image (first uploaded)
-         // images[1] = model image (second uploaded)
+        const img1base64 = loadImage(images[0].path, images[0].mimetype);
+        const img2base64 = loadImage(images[1].path, images[1].mimetype);
+        // Read files from disk temp location and encode as base64.
+        // images[0] = product image (first uploaded)
+        // images[1] = model image (second uploaded)
 
-         const prompt = {
+        const prompt = {
             text: `Combine the person and product into a realistic photo.
             Make the person naturally hold or use the product.
             Match lighting, shadows, scale and perspective.
@@ -243,90 +243,90 @@ export const createProject = async (req:Request, res: Response) => {
             // The base prompt always requests realistic composite photography.
             // ${userPrompt} appends the user's custom instructions at the end.
             // This is PROMPT ENGINEERING — crafting text instructions to guide AI output.
-         }
+        }
 
         // ── STEP 5: CALL GEMINI AI ──
-         const response: any = await ai.models.generateContent({
+        const response: any = await ai.models.generateContent({
             model,
             contents: [img1base64, img2base64, prompt],
             // contents = the multimodal input array:
             //   [image1 (base64), image2 (base64), text prompt]
             // Gemini Pro Image processes ALL inputs together to generate the composite.
             config: generationConfig,
-         })
+        })
 
-         // Validate response structure
-         if(!response?.candidates?.[0]?.content?.parts){
+        // Validate response structure
+        if (!response?.candidates?.[0]?.content?.parts) {
             throw new Error('Unexpected response')
-         }
-         // Optional chaining (?.) safely navigates the nested response object.
-         // If any part is undefined, it returns undefined instead of throwing.
+        }
+        // Optional chaining (?.) safely navigates the nested response object.
+        // If any part is undefined, it returns undefined instead of throwing.
 
-         const parts = response.candidates[0].content.parts;
-         
-         let finalBuffer: Buffer | null = null
+        const parts = response.candidates[0].content.parts;
 
-         for(const part of parts){
-            if(part.inlineData){
+        let finalBuffer: Buffer | null = null
+
+        for (const part of parts) {
+            if (part.inlineData) {
                 finalBuffer = Buffer.from(part.inlineData.data, 'base64')
                 // Convert the base64-encoded response image back to a binary Buffer.
                 // Buffer.from(string, 'base64') = base64 string → raw bytes
             }
-         }
-         // The Gemini response `parts` array can contain multiple items.
-         // We look for the part that contains inlineData (the image bytes).
-         // Other parts might contain text (captions, etc.) which we ignore.
+        }
+        // The Gemini response `parts` array can contain multiple items.
+        // We look for the part that contains inlineData (the image bytes).
+        // Other parts might contain text (captions, etc.) which we ignore.
 
-         if(!finalBuffer){
+        if (!finalBuffer) {
             throw new Error('Failed to generate image');
-         }
+        }
 
-         // ── STEP 6: UPLOAD GENERATED IMAGE TO CLOUDINARY ──
-         const base64Image = `data:image/png;base64,${finalBuffer.toString('base64')}`
-         // Create a Data URI: a string format that encodes a file directly in a URL.
-         // Format: data:[mimeType];base64,[base64data]
-         // Cloudinary's upload function accepts Data URIs for programmatic uploads.
+        // ── STEP 6: UPLOAD GENERATED IMAGE TO CLOUDINARY ──
+        const base64Image = `data:image/png;base64,${finalBuffer.toString('base64')}`
+        // Create a Data URI: a string format that encodes a file directly in a URL.
+        // Format: data:[mimeType];base64,[base64data]
+        // Cloudinary's upload function accepts Data URIs for programmatic uploads.
 
-         const uploadResult = await cloudinary.uploader.upload(base64Image, {resource_type: 'image'});
-         // Upload the generated image to Cloudinary.
-         // Returns: { secure_url: "https://res.cloudinary.com/...", public_id: "...", ... }
+        const uploadResult = await cloudinary.uploader.upload(base64Image, { resource_type: 'image' });
+        // Upload the generated image to Cloudinary.
+        // Returns: { secure_url: "https://res.cloudinary.com/...", public_id: "...", ... }
 
         // ── STEP 7: UPDATE PROJECT WITH RESULTS ──
-         await prisma.project.update({
-            where: {id: project.id},
+        await prisma.project.update({
+            where: { id: project.id },
             data: {
                 generatedImage: uploadResult.secure_url,
                 isGenerating: false
                 // Mark generation complete. Frontend polling will see isGenerating=false and stop.
             }
-         })
+        })
 
-         res.json({projectId: project.id})
-         // Return the project ID. Frontend navigates to /result/:projectId.
-        
-    } catch (error:any) {
+        res.json({ projectId: project.id })
+        // Return the project ID. Frontend navigates to /result/:projectId.
+
+    } catch (error: any) {
         // ── ERROR RECOVERY ───────────────────────────────────
-        if(tempProjectId!){
+        if (tempProjectId!) {
             // If a project was created before the error, update its status.
             // The `!` after `tempProjectId` is a TypeScript non-null assertion
             // (tells TypeScript "I know this is set"). But the JS `if(tempProjectId)` 
             // already guards against it being undefined.
             await prisma.project.update({
-                where: {id: tempProjectId},
-                data: {isGenerating: false, error: error.message}
+                where: { id: tempProjectId },
+                data: { isGenerating: false, error: error.message }
                 // Mark as failed so the frontend doesn't keep polling forever.
                 // Save the error message for debugging.
             })
         }
 
-        if(isCreditDeducted){
+        if (isCreditDeducted) {
             // CREDIT ROLLBACK: Refund the 5 credits if the AI call failed.
             // Without this: user loses credits but gets no generated image.
             // This manual rollback simulates a database transaction without
             // actually using one (Prisma supports $transaction() for true transactions).
             await prisma.user.update({
-                where: {id: userId},
-                data: {credits: {increment: 5}}
+                where: { id: userId },
+                data: { credits: { increment: 5 } }
             })
         }
 
@@ -338,24 +338,24 @@ export const createProject = async (req:Request, res: Response) => {
 
 // ── CONTROLLER: createVideo ───────────────────────────────
 // POST /api/project/video (via projectRoutes.ts)
-export const createVideo = async (req:Request, res: Response) => {
-    const {userId} = req.auth()
+export const createVideo = async (req: Request, res: Response) => {
+    const { userId } = req.auth()
     const { projectId } = req.body;
     let isCreditDeducted = false;
 
     // ── CREDIT CHECK ─────────────────────────────────────────
     const user = await prisma.user.findUnique({
-        where: {id: userId}
+        where: { id: userId }
     })
 
-    if(!user || user.credits < 10){
+    if (!user || user.credits < 10) {
         return res.status(401).json({ message: 'Insufficient credits' });
         // Video generation costs 10 credits (double the image cost).
     }
 
     await prisma.user.update({
-        where: {id: userId},
-        data: {credits: {decrement: 10}}
+        where: { id: userId },
+        data: { credits: { decrement: 10 } }
     }).then(() => { isCreditDeducted = true });
     // Deduct 10 credits BEFORE the API call.
     // If we deducted AFTER and the API succeeded but the DB update failed,
@@ -363,19 +363,19 @@ export const createVideo = async (req:Request, res: Response) => {
 
     try {
         const project = await prisma.project.findUnique({
-            where: {id: projectId, userId},
-            include: {user: true}
+            where: { id: projectId, userId },
+            include: { user: true }
             // include: {user: true} → JOIN with the User table.
             // Returns the project WITH the user object embedded.
             // Not strictly needed here (user data isn't used), but shows the pattern.
         })
 
-        if(!project || project.isGenerating){
+        if (!project || project.isGenerating) {
             return res.status(404).json({ message: 'Generation in progress' });
             // Can't start video generation if image generation is still running.
         }
 
-        if(project.generatedVideo){
+        if (project.generatedVideo) {
             return res.status(404).json({ message: 'Video already generated' });
             // Idempotency check: don't allow re-generation if video exists.
             // Prevents double-spending credits.
@@ -383,8 +383,8 @@ export const createVideo = async (req:Request, res: Response) => {
 
         // Mark project as generating (frontend polls this)
         await prisma.project.update({
-            where: {id: projectId},
-            data: {isGenerating: true}
+            where: { id: projectId },
+            data: { isGenerating: true }
         })
 
         // Build the video generation prompt
@@ -398,16 +398,16 @@ export const createVideo = async (req:Request, res: Response) => {
         // veo-3.1-generate-preview = a specific version of Veo.
         // Requires image input to animate (image-to-video generation).
 
-        if(!project.generatedImage){
+        if (!project.generatedImage) {
             throw new Error('Generated image not found');
         }
 
         // ── DOWNLOAD THE GENERATED IMAGE ─────────────────────
-        const image = await axios.get(project.generatedImage, {responseType: 'arraybuffer'})
+        const image = await axios.get(project.generatedImage, { responseType: 'arraybuffer' })
         // Download the image from Cloudinary as a binary arraybuffer.
         // responseType: 'arraybuffer' → axios returns the response body as raw bytes (not JSON/text).
         // WHY? Veo requires the actual image bytes, not just the Cloudinary URL.
-        
+
         const imageBytes: any = Buffer.from(image.data)
         // Convert the arraybuffer to a Node.js Buffer.
         // Buffer = Node.js's representation of binary data.
@@ -432,7 +432,7 @@ export const createVideo = async (req:Request, res: Response) => {
         // operation.done = false initially. We need to poll until done = true.
 
         // ── POLL FOR VIDEO COMPLETION ─────────────────────────
-        while (!operation.done){
+        while (!operation.done) {
             console.log('Waiting for video generation to complete...');
             await new Promise((resolve) => setTimeout(resolve, 10000));
             // ASYNC SLEEP: Pause for 10,000ms (10 seconds).
@@ -450,7 +450,7 @@ export const createVideo = async (req:Request, res: Response) => {
             // A: while(!done) { await sleep(10000); checkStatus() }
             //    This blocks the current async function but doesn't block Node's event loop.
             //    Other requests can be handled while we're sleeping.
-            
+
             operation = await ai.operations.getVideosOperation({
                 operation: operation,
                 // Pass the operation reference to check its current status.
@@ -464,17 +464,17 @@ export const createVideo = async (req:Request, res: Response) => {
         // Date.now() = milliseconds since Unix epoch (Jan 1, 1970).
         // Example: "user_2abc-1748516400000.mp4"
         // Collision-resistant: same user can't generate two videos at the exact same millisecond.
-        
+
         const filePath = path.join('videos', filename)
         // path.join creates: "videos/user_2abc-1748516400000.mp4"
         // path.join handles OS-specific separators (\ on Windows, / on Linux).
 
-        fs.mkdirSync('videos', {recursive: true})
+        fs.mkdirSync('videos', { recursive: true })
         // Create the `videos/` directory if it doesn't already exist.
         // {recursive: true} prevents errors if the directory already exists.
         // Without this: the download would fail because the directory doesn't exist.
 
-        if(!operation.response.generatedVideos){
+        if (!operation.response.generatedVideos) {
             throw new Error(operation.response.raiMediaFilteredReasons[0])
             // RAI = Responsible AI. If the video was filtered (blocked by safety),
             // raiMediaFilteredReasons contains the reason why.
@@ -495,7 +495,7 @@ export const createVideo = async (req:Request, res: Response) => {
 
         // ── UPDATE PROJECT IN DB ──────────────────────────────
         await prisma.project.update({
-            where: {id: project.id},
+            where: { id: project.id },
             data: {
                 generatedVideo: uploadResult.secure_url,
                 isGenerating: false
@@ -510,20 +510,20 @@ export const createVideo = async (req:Request, res: Response) => {
         // PRODUCTION NOTE: In serverless environments (Vercel), the filesystem
         // is read-only or ephemeral, so disk cleanup is even more important.
 
-        res.json({message: 'Video generation completed', videoUrl: uploadResult.secure_url})
-        
-    } catch (error:any) {
+        res.json({ message: 'Video generation completed', videoUrl: uploadResult.secure_url })
+
+    } catch (error: any) {
         // ── ERROR RECOVERY ───────────────────────────────────
         await prisma.project.update({
-            where: {id: projectId, userId},
-            data: {isGenerating: false, error: error.message}
+            where: { id: projectId, userId },
+            data: { isGenerating: false, error: error.message }
         })
 
-        if(isCreditDeducted){
+        if (isCreditDeducted) {
             // Refund 10 credits on failure.
             await prisma.user.update({
-                where: {id: userId},
-                data: {credits: {increment: 10}}
+                where: { id: userId },
+                data: { credits: { increment: 10 } }
             })
         }
 
@@ -534,15 +534,15 @@ export const createVideo = async (req:Request, res: Response) => {
 
 // ── CONTROLLER: getAllPublishedProjects ───────────────────
 // GET /api/project/published (via projectRoutes.ts — NO auth required)
-export const getAllPublishedProjects = async (req:Request, res: Response) => {
+export const getAllPublishedProjects = async (req: Request, res: Response) => {
     try {
         const projects = await prisma.project.findMany({
-            where: {isPublished: true}
+            where: { isPublished: true }
             // Only returns projects the owner has chosen to make public.
         })
-        res.json({projects})
+        res.json({ projects })
 
-    } catch (error:any) {
+    } catch (error: any) {
         Sentry.captureException(error);
         res.status(500).json({ message: error.message });
     }
@@ -550,31 +550,31 @@ export const getAllPublishedProjects = async (req:Request, res: Response) => {
 
 // ── CONTROLLER: deleteProject ─────────────────────────────
 // DELETE /api/project/:projectId (via projectRoutes.ts)
-export const deleteProject = async (req:Request, res: Response) => {
+export const deleteProject = async (req: Request, res: Response) => {
     try {
         const { userId } = req.auth();
         const { projectId } = req.params;
 
         const project = await prisma.project.findUnique({
-            where: {id: projectId, userId}
+            where: { id: projectId, userId }
             // AUTHORIZATION: find only if user owns it.
         })
 
-         if (!project){
+        if (!project) {
             return res.status(404).json({ message: 'Project not found' });
-         }
+        }
 
-         await prisma.project.delete({
-            where: {id: projectId}
+        await prisma.project.delete({
+            where: { id: projectId }
             // Hard delete — permanently removes the row from the DB.
             // Cloudinary assets (uploaded images/videos) are NOT deleted here.
             // Production improvement: also call cloudinary.uploader.destroy() to
             // remove media files and save Cloudinary storage costs.
-         })
+        })
 
-         res.json({ message: 'Project deleted' });
+        res.json({ message: 'Project deleted' });
 
-    } catch (error:any) {
+    } catch (error: any) {
         Sentry.captureException(error);
         res.status(500).json({ message: error.message });
     }

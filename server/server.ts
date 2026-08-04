@@ -146,10 +146,6 @@ app.get('/', (req: Request, res: Response) => {
     res.send('Server is Live!');
 });
 
-// Sentry test route — deliberately throws an error to verify Sentry is working
-app.get("/debug-sentry", function mainHandler(req, res) {
-  throw new Error("My first Sentry error!");
-});
 
 // Mount routers at their URL prefixes
 app.use('/api/user', userRouter)
