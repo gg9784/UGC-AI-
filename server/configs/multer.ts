@@ -21,7 +21,7 @@
 //    When a browser submits a form with file inputs, it encodes the data as
 //    multipart/form-data. Express's built-in body parser (express.json) cannot
 //    handle this format. Multer processes it and makes files available via req.files.
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
 
 import multer from 'multer';
 
@@ -51,7 +51,7 @@ const storage = multer.diskStorage({})
 // After Cloudinary upload, the temp files remain on disk but are irrelevant
 // (they'll be cleaned up by the OS eventually, or could be explicitly deleted).
 
-const upload = multer({storage})
+const upload = multer({ storage })
 // Creates the configured Multer upload handler.
 // The `upload` object has methods for different upload scenarios:
 //   upload.single('fieldName')    → Expects ONE file under 'fieldName'
